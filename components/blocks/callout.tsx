@@ -6,7 +6,7 @@ import { PageBlocksCallout } from '@/tina/__generated__/types';
 import { ArrowRight } from 'lucide-react';
 import { AnimatedGroup } from '../motion-primitives/animated-group';
 import { Section, sectionBlockSchemaField } from '../layout/section';
-import type { Transition } from 'motion/react';
+import type { Transition, Variants } from 'motion/react';
 
 const transitionVariants: { item: Variants } = {
     item: {

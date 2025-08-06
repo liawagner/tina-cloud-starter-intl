@@ -1,0 +1,772 @@
+![Vercel Deploy](https://deploy-badge.vercel.app/vercel/tina-cloud-starter-intl?name=Vercel)
+
+# Internationalized (i18n) TinaCMS Cloud Starter Template 
+
+Whether you're starting fresh or adapting an existing TinaCMS site, this documentation provides both implementation guidance and architectural insights for building multilingual content experiences.
+
+## Instructions for next-intl integration
+
+- [App Router setup with i18n routing – Internationalization \(i18n\) for Next.js](https://next-intl.dev/docs/getting-started/app-router/with-i18n-routing)
+- Follow the 8 steps from the next-intl documentation adapted to the existing Tina CMS code
+- Implement i18n support for pages, blog posts, navigation and locale switcher
+
+### Install next-intl, add related files, reorganize files under `app/[locale]`
+
+```
+pnpm install next-intl
+```
+
+#### 1. Add German and English localization files `messages/en.json` and `de.json`
+
+- Translations for the NotFound page
+
+```json
+{
+  "NotFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Verloren, diese Seite ist. In einem anderen System könnte sie sein.",
+    "link": "Zurück zur Startseite"
+  }
+}
+```
+
+#### 2. Modify `next.config.ts` for intl support
+
+- Decouple TinaCMS config from Next.js config dependency to prevent errors during TinaCMS build
+- Enable next-intl plugin wrapper in next.config.ts without compatibility issues
+
+```ts
+import createNextIntlPlugin from 'next-intl/plugin';
+...
+const withNextIntl = createNextIntlPlugin();
+export default withNextIntl(nextConfig);
+```
+
+#### Modify tina/config.tsx
+- Remove `import nextConfig from '../next.config'` to resolve conflicts
+- Hardcode basePath as empty string 
+
+```ts
+...
+outputFolder: "admin", // within the public folder
+basePath: "", // Hardcoded - was always empty anyway! Changed due to error with next-intl.
+```
+
+#### Reorganize all pages and blog posts under `app/[locale]`
+
+```ts
+app / [locale] / layout.tsx;
+app / [locale] / page.tsx;
+app / [locale] / not - found.tsx;
+
+app / [locale] / [...urlSegments] / page.tsx;
+app / [locale] / [...urlSegments] / client - page.tsx;
+
+app / [locale] / posts / page.tsx;
+app / [locale] / posts / client - page.tsx;
+app / [locale] / posts / [...urlSegments] / client - page.tsx;
+app / [locale] / posts / [...urlSegments] / page.tsx;
+```
+
+### Add internationalization middleware, routing configuration and adapt layout
+
+#### 3. Add `i18n/routing.ts`
+
+- No changes
+- To share the configuration between navigation and middleware
+- Created routing configuration to define supported locales and default locale.
+
+```ts
+import { defineRouting } from "next-intl/routing";
+
+export const routing = defineRouting({
+  // A list of all locales that are supported
+  locales: ["en", "de"],
+
+  // Used when no locale matches
+  defaultLocale: "en",
+});
+```
+
+#### 4. Add `i18n/navigation.ts`
+
+- No changes
+- Added navigation utilities to facilitate locale-aware navigation.
+
+```ts
+import { createNavigation } from "next-intl/navigation";
+import { routing } from "./routing";
+
+// Lightweight wrappers around Next.js' navigation
+// APIs that consider the routing configuration
+export const { Link, redirect, usePathname, useRouter, getPathname } =
+  createNavigation(routing);
+```
+
+#### 5. Add `middleware.ts`
+
+- Add `admin` to the exclusions
+
+```ts
+import createMiddleware from "next-intl/middleware";
+import { routing } from "./i18n/routing";
+
+export default createMiddleware(routing);
+
+export const config = {
+  // Match all pathnames except for
+  // - … if they start with `/api`, `/trpc`, `/_next` or `/_vercel`
+  // - … the ones containing a dot (e.g. `favicon.ico`)
+
+  // - … `/admin` paths (for Tina CMS)
+  matcher: "/((?!api|trpc|_next|_vercel|admin|.*\\..*).*)",
+};
+```
+
+#### 6. Add `i18n/request.ts`
+
+- No changes
+- Used to provide messages based on the user’s locale
+
+```ts
+import { getRequestConfig } from "next-intl/server";
+import { hasLocale } from "next-intl";
+import { routing } from "./routing";
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  // Typically corresponds to the `[locale]` segment
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale;
+
+  return {
+    locale,
+    messages: (await import(`../messages/${locale}.json`)).default,
+  };
+});
+```
+
+#### 7. Modify `app/[locale]/layout.tsx`
+
+- Updated RootLayout to validate incoming locale
+
+```ts
+import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { notFound } from "next/navigation";
+import { routing } from "@/i18n/routing";
+...
+
+export default async function RootLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  // Ensure that the incoming `locale` is valid
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  return (
+    <html
+      lang={locale}
+      className={cn(fontSans.variable, nunito.variable, lato.variable)}
+    >
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <VideoDialogProvider>
+          <NextIntlClientProvider>{children}</NextIntlClientProvider>
+          <VideoDialog />
+        </VideoDialogProvider>
+```
+
+### Implement internationalization support for pages
+
+- Modified Home and Page components to support locale-specific content retrieval with fallback mechanisms.
+
+#### 8. Support locale-specific content retrieval
+
+**app/[locale]/page.tsx**
+
+```ts
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  // Try locale-specific home first, fallback to generic home
+  let data;
+  try {
+    data = await client.queries.page({
+      relativePath: `${locale}/home.mdx`,
+    });
+  } catch (error) {
+    // Fallback to non-locale specific home
+    try {
+      data = await client.queries.page({
+        relativePath: `home.mdx`,
+      });
+    } catch (fallbackError) {
+      throw error; // Re-throw original error
+    }
+  }
+```
+
+#### Modify `app/[locale]/not-found.tsx`
+
+- Enhanced NotFound component to utilize translations for dynamic content.
+
+```ts
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+...
+export default function NotFound() {
+  const t = useTranslations("NotFound");
+...
+<h1 className="mt-4 text-balance text-5xl font-semibold tracking-tight text-primary sm:text-7xl">
+        {t("title")}
+      </h1>
+      <p className="mt-6 text-pretty text-lg font-medium text-muted-foreground sm:text-xl/8">
+        {t("description")}
+      </p>
+      <div className="mt-10 mx-auto">
+        <Button asChild>
+        <Link href="/">{t("link")}</Link>
+
+```
+
+#### Modify `app/[locale]/[...urlSegments]/page.tsx`
+
+- Integrated locale handling in URL segments.
+
+```ts
+import { hasLocale } from 'next-intl';Add commentMore actions
+import { routing } from '@/i18n/routing';
+import { setRequestLocale } from 'next-intl/server';
+...
+}: {
+  params: Promise<{ locale: string; urlSegments: string[] }>;
+}) {
+  const { locale, urlSegments } = await params;
+
+  // Validate locale
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  // Enable static rendering
+  setRequestLocale(locale);
+
+  const filepath = urlSegments.join('/');
+
+  let data;
+  try {
+    // Try locale-specific content first
+    data = await client.queries.page({
+      relativePath: `${locale}/${filepath}.mdx`,
+    });
+  } catch (error) {
+    // Fallback to non-locale specific content
+    try {
+      data = await client.queries.page({
+        relativePath: `${filepath}.mdx`,
+      });
+    } catch (fallbackError) {
+      notFound();
+    }
+```
+
+#### Moved and translated text from `content/pages/` to `/pages/locale/`
+
+- content/pages/en/home.mdx
+- content/pages/en/about.mdx
+- content/pages/de/home.mdx
+- content/pages/de/about.mdx
+
+```yaml
+---
+blocks:
+... (translated content)
+```
+
+### Implement internationalization support for Blog Posts
+
+#### Moved and translated posts from `content/posts/` to `/posts/locale/`
+
+```ts
+content / posts / de / june / learning - about - tinacloud.mdx;
+content / posts / de / learning - about - components.mdx;
+content / posts / de / learning - about - markdown.mdx;
+content / posts / de / learning - about - mermaid.mdx;
+content / posts / de / learning - about - tinacms.mdx;
+content / posts / de / learning - to - blog.mdx;
+
+content / posts / en / june / learning - about - tinacloud.mdx;
+content / posts / en / learning - about - components.mdx;
+content / posts / en / learning - about - markdown.mdx;
+content / posts / en / learning - about - mermaid.mdx;
+content / posts / en / learning - about - tinacms.mdx;
+content / posts / en / learning - to - blog.mdx;
+```
+
+### Implement server-side locale filtering for blog posts
+
+- Add server-side filtering in posts page to show only locale-specific content
+- Filter posts by checking first breadcrumb segment against current locale
+
+#### Posts list: modify `app/[locale]/posts/page.tsx`
+
+- Filter posts list by locale
+
+```ts
+import { hasLocale } from 'next-intl';
+import { routing } from '@/i18n/routing';
+import { setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+
+export const revalidate = 300;
+
+export default async function PostsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  setRequestLocale(locale);
+...
+allPosts.data.postConnection.edges.push(
+      ...posts.data.postConnection.edges.reverse()
+    );
+  }
+
+  // Filter posts by locale based on the breadcrumbs (first segment is the locale)
+  const filteredEdges = allPosts.data.postConnection.edges.filter((edge) => {
+    // Check if the first breadcrumb matches the current locale
+    return edge?.node?._sys.breadcrumbs[0] === locale;
+  });
+
+  // Create a filtered version of the posts data
+  const filteredPosts = {
+    ...allPosts,
+    data: {
+      ...allPosts.data,
+      postConnection: {
+        ...allPosts.data.postConnection,
+        edges: filteredEdges,
+      },
+    },
+  };
+
+  return (
+    <Layout rawPageData={filteredPosts.data}>
+      <PostsClientPage {...filteredPosts} />
+    </Layout>
+...
+```
+
+#### Modify `app/[locale]/posts/client-page.tsx`
+
+- Added `breadcrumbsWithoutLocale` to prevent duplicate locale in route such as: `domain/de/posts/de/article`
+
+```ts
+...
+      formattedDate = format(date, 'MMM dd, yyyy');
+    }
+    const breadcrumbsWithoutLocale = post._sys.breadcrumbs.slice(1);
+...
+      tags: post.tags?.map((tag) => tag?.tag?.name) || [],
+      url: `/posts/${breadcrumbsWithoutLocale.join('/')}`,
+...
+```
+
+#### Individual posts: modify `app/[locale]/posts/[...urlSegments]/page.tsx`
+
+- Update individual post page to handle locale parameter properly
+- Filepath with locale before article name: `content/posts/de/learning-to-blog.mdx`
+
+```ts
+...
+import { hasLocale } from 'next-intl';
+import { routing } from '@/i18n/routing';
+import { setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+...
+  params: Promise<{ locale: string; urlSegments: string[] }>;
+}) {
+  const resolvedParams = await params;
+  const { locale, urlSegments } = resolvedParams;
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  setRequestLocale(locale);
+
+  const filepath = `${locale}/${urlSegments.join('/')}`;
+
+  let data;
+  try {
+    data = await client.queries.post({
+      relativePath: `${filepath}.mdx`,
+    });
+  } catch (error) {
+    notFound();
+  }
+...
+  urlSegments: edge?.node?._sys.breadcrumbs.slice(1),
+```
+
+### Internationalize Navigation and Menu
+
+- Add internationalization support to Layout component with menu items sourced from `global/index.json`
+- Translate and move files into `content/global/de/index.json` and `content/global/en/index.json`
+
+#### Modify `components/layout/layout.tsx`
+
+- Import getLocale from next-intl/server to detect current locale
+- Implement try-catch pattern to load locale-specific global content first
+- Add fallback to non-locale specific content
+
+```ts
+...
+import { getLocale } from 'next-intl/server';
+...
+ // Get the current localeAdd commentMore actions
+  const locale = await getLocale();
+
+  let globalData;
+  try {
+    // Try locale-specific global content first
+    globalData = await client.queries.global(
+      {
+        relativePath: `${locale}/index.json`,
+      },
+      {
+        fetchOptions: {
+          next: {
+            revalidate: 60,
+          },
+        },
+      }
+    );
+  } catch (error) {
+    // Fallback to non-locale specific content
+    try {
+      globalData = await client.queries.global(
+        {
+          relativePath: 'index.json',
+        },
+        {
+          fetchOptions: {
+            next: {
+              revalidate: 60,
+            },
+          },
+        }
+      );
+    } catch (fallbackError) {
+      throw error; // Re-throw original error
+    }
+  }
+
+  return (
+    <LayoutProvider
+...
+```
+
+#### Add `content/global/de/index.json`
+
+- Translated from content/global/en/index.json
+
+```json
+    "nav": [
+      {
+        "href": "/",
+        "label": "Hauptseite"
+      },
+      {
+        "href": "/about",
+        "label": "Über Uns"
+      },
+      {
+        "href": "/posts",
+        "label": "Das Blog"
+      }
+    ]
+```
+
+### Add a Locale Switcher
+
+- Add language switcher with flag icons (🇩🇪/🇺🇸) before site name
+- Place language switcher and site name at bottom of mobile menu
+- Integrate with existing next-intl setup
+- While originally based on [this](https://github.com/amannn/next-intl/blob/main/examples/example-app-router/src/components/), I switched to using the Shadcn [select component](https://ui.shadcn.com/docs/components/select) - credit goes to [Darius Kletter](https://github.com/daribock)
+
+#### Add Shadcn Select Component
+
+```
+pnpm dlx shadcn@latest add select
+```
+
+- installed in components/ui/select.tsx
+
+#### Add `components/layout/nav/locale-switcher.tsx`
+
+```ts
+import {useLocale, useTranslations} from 'next-intl';
+import {routing} from '@/i18n/routing';
+import LocaleSwitcherSelect from './locale-switcher-select';
+
+export default function LocaleSwitcher() {
+  const t = useTranslations('LocaleSwitcher');
+  const locale = useLocale();
+
+  return (
+    <LocaleSwitcherSelect defaultValue={locale} label={t('label')}>
+      {routing.locales.map((cur) => (
+        <option key={cur} value={cur}>
+          {t('locale', {locale: cur})}
+        </option>
+      ))}
+    </LocaleSwitcherSelect>
+  );
+}
+```
+
+#### Add `components/layout/nav/locale-switcher-select.tsx`
+
+```ts
+'use client';
+
+import { useRouter, usePathname } from '@/i18n/navigation';
+import { useParams } from 'next/navigation';
+import { ReactNode, useTransition } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type Props = {
+  children: ReactNode;
+  defaultValue: string;
+  label: string;
+};
+
+export default function LocaleSwitcherSelect({
+  children,
+  defaultValue,
+  label,
+}: Props) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const pathname = usePathname();
+  const params = useParams();
+
+  function onValueChange(nextLocale: string) {
+    startTransition(() => {
+      router.replace(
+        // @ts-expect-error
+        { pathname, params },
+        { locale: nextLocale }
+      );
+    });
+  }
+
+  // Extract options from children (option elements)
+  const options = Array.isArray(children) ? children : [children];
+
+  return (
+    <div className="relative">
+      <span className="sr-only">{label}</span>
+      <Select
+        defaultValue={defaultValue}
+        disabled={isPending}
+        onValueChange={onValueChange}
+      >
+        <SelectTrigger className="w-fit text-sm text-muted-foreground border-none shadow-none bg-transparent">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option: any) => {
+            if (option?.props) {
+              return (
+                <SelectItem key={option.props.value} value={option.props.value}>
+                  {option.props.children}
+                </SelectItem>
+              );
+            }
+            return null;
+          })}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+```
+
+#### Modify `components/layout/nav/header.tsx`
+
+```ts
+"use client";
+
+import React from "react";
+import { Link } from "@/i18n/navigation";
+import Image from "next/image";
+import { Icon } from "../../icon";
+import { useLayout } from "../layout-context";
+import { Menu, X } from "lucide-react";
+import LocaleSwitcher from "./locale-switcher";
+
+export const Header = () => {
+  const { globalSettings, theme } = useLayout();
+...
+```
+
+#### Add `messages/de.json`
+
+```
+  "LocaleSwitcher": {
+    "label": "Sprache ändern",
+    "locale": "{locale, select, de {🇩🇪 Deutsch} en {🇺🇸 English} other {Unknown}}"
+  },
+```
+
+#### Add `messages/en.json`
+
+```
+  "LocaleSwitcher": {
+    "label": "Change language",
+    "locale": "{locale, select, de {🇩🇪 Deutsch} en {🇺🇸 English} other {Unknown}}"
+  },
+```
+
+### Internationalize all Navigation and Content links
+
+Replaced `next/link` with `@/i18n/navigation` Link component across all navigation and content components to ensure locale-aware routing.
+
+  1. Automatic Locale Resolution: next-intl Link automatically prefixes URLs with current locale
+  2. Cookie Persistence: User's language preference maintained across navigation
+  3. Zero Configuration Changes: Global config hrefs remain locale-neutral (/about, /posts)
+  4. Drop-in Replacement: No JSX or component structure changes required
+  5. Backward Compatible: All existing functionality preserved
+
+#### Changes Made
+
+All changes follow the same pattern:
+
+```
+  // replace
+  import Link from 'next/link';
+
+  // with  
+  import { Link } from '@/i18n/navigation';
+```
+
+#### Files Updated:
+
+- **Navigation**
+  - components/layout/nav/header.tsx - Main navigation menu
+  - components/layout/nav/footer.tsx - Footer home link
+
+- **Content Blocks**
+  - components/blocks/call-to-action.tsx - CTA action links
+  - components/blocks/callout.tsx - Callout links
+  - components/blocks/hero.tsx - Hero action links
+
+- **Posts**
+  - app/[locale]/posts/client-page.tsx - Post navigation links
+
+## Upgrade React 18.3 → 19.1 (optional)
+
+The internationalization works with both versions
+
+Theoretically this should work without issues:
+- https://tina.io/blog/react-19-support
+- https://react.dev/blog/2024/04/25/react-19-upgrade-guide
+- Codemods are not required
+
+### 1. Update TinaCMS first
+
+```
+pnpm add tinacms@latest @tinacms/cli@latest
+```
+
+### 2. Update React and related packages
+
+```
+pnpm add react@latest react-dom@latest @types/react@latest @types/react-dom@latest
+```
+
+- This causes numerous dependency warnings, for example:
+
+```
+ WARN  Issues with peer dependencies found
+├─┬ tinacms 2.7.8
+│ └─┬ @tinacms/mdx 1.6.3
+│   ├─┬ @tinacms/schema-tools 1.7.4
+│   │ └── ✕ unmet peer yup@^0.32.0: found 1.6.1
+│   └─┬ typedoc 0.26.11
+│     └── ✕ unmet peer typescript@5.6.3: found 5.8.3
+├─┬ @tinacms/cli 1.9.8
+│ └─┬ @tinacms/metrics 1.0.9
+│   └── ✕ unmet peer fs-extra@^9.0.1: found 11.3.0
+└─┬ next-intl 4.1.0
+  └── ✕ unmet peer typescript@5.6.3: found 5.8.3
+```
+
+### 3. Add the pnpm configuration
+
+- To override dependency versions and ignore React version warnings
+- Add this to `pnpm-workspace.yaml`:
+
+```yaml
+  "yup": "1.6.1"
+  "fs-extra": "11.3.0"
+  "typescript": "5.8.3"
+
+peerDependencyRules:
+  allowedVersions:
+    react: "19"
+    react-dom: "19"
+```
+
+### 4. Add these to package.json
+
+Pin to the latest versions
+
+```
+json{
+  "dependencies": {
+    "fs-extra": "^11.3.0",
+    "yup": "^1.6.1"
+  }
+}
+```
+
+### 4. Clean install and test build
+
+```sh
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+pnpm build
+```
+
+## Added a content block with imgage beside content
+
+- this is not related to internationalization and purely optional
+
+## i18n Issues
+
+- if you find an internationalization bug please report it [here](https://github.com/liawagner/tina-cloud-starter-intl/issues)
