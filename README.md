@@ -1,8 +1,29 @@
-# Tina Cloud Starter Internationalized 🦙
 
 ![Vercel Deploy](https://deploy-badge.vercel.app/vercel/tina-cloud-starter-intl?name=Vercel)
 
+# Tina Cloud Starter Internationalized 🦙
+
+This template extends the official TinaCMS Cloud Starter with comprehensive internationalization support, featuring a built-in language switcher and seamless live editing capabilities across multiple languages.
+
+Using This Template:
+
+- New projects: Deploy directly using the template button above for an immediate internationalized setup
+- Existing projects: Follow [this guide](INTERNATIONALIZATION.md) to add internationalization to an unmodified TinaCMS Cloud Starter
+- Reference: Use the [documented changes](INTERNATIONALIZATION.md) to extend internationalization to additional site components
+
+Key Features:
+
+- Multi-language content management with live preview
+- Dynamic language switching with URL-based routing
+- Localized content blocks and components
+- SEO-optimized with proper hreflang implementation
+- Production-ready deployment configuration
+
+Whether you're starting fresh or adapting an existing TinaCMS site, the [documentation](INTERNATIONALIZATION.md) provides both implementation guidance and architectural insights for building multilingual content experiences.
+
 **[Step-by-step instructions for internationalization of Tina CMS using next-intl](INTERNATIONALIZATION.md)**
+
+## Original Tina Cloud Starter README 🦙
 
 ![tina-cloud-starter-demo](TinaCloudStarter.png)
 

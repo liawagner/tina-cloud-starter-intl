@@ -1,7 +1,8 @@
 ![Vercel Deploy](https://deploy-badge.vercel.app/vercel/tina-cloud-starter-intl?name=Vercel)
 
-# Internationalized (i18n) version of Tina CMS Cloud Starter 
-**including language switcher and live editing**
+# Internationalized (i18n) TinaCMS Cloud Starter Template 
+
+Whether you're starting fresh or adapting an existing TinaCMS site, this documentation provides both implementation guidance and architectural insights for building multilingual content experiences.
 
 ## Instructions for next-intl integration
 
