@@ -1,7 +1,7 @@
 'use client';
 import { iconSchema } from '@/tina/fields/icon';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import * as React from 'react';
 import type { Template } from 'tinacms';
 import { tinaField } from 'tinacms/dist/react';
@@ -33,7 +33,7 @@ const transitionVariants = {
       filter: 'blur(0px)',
       y: 0,
       transition: {
-        type: 'spring',
+        type: 'spring' as const,
         bounce: 0.3,
         duration: 1.5,
       } as Transition,

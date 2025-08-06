@@ -1,5 +1,5 @@
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import { Link } from "@/i18n/navigation";
 import type { Template } from 'tinacms';
 import { tinaField } from 'tinacms/dist/react';
 import { PageBlocksCallout } from '@/tina/__generated__/types';
@@ -8,7 +8,7 @@ import { AnimatedGroup } from '../motion-primitives/animated-group';
 import { Section, sectionBlockSchemaField } from '../layout/section';
 import type { Transition } from 'motion/react';
 
-const transitionVariants = {
+const transitionVariants: { item: Variants } = {
     item: {
         hidden: {
             opacity: 0,
@@ -20,7 +20,7 @@ const transitionVariants = {
             filter: 'blur(0px)',
             y: 0,
             transition: {
-                type: 'spring',
+                type: 'spring' as const,
                 bounce: 0.3,
                 duration: 1.5,
             } as Transition,
