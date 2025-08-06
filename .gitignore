@@ -14,6 +14,7 @@ next-env.d.ts
 
 # production
 /build
+tsconfig.tsbuildinfo
 
 # misc
 .DS_Store
@@ -27,3 +28,11 @@ yarn-debug.log*
 yarn-error.log*
 
 .tina/__generated__
+
+# dev
+BACKUP/
+CLAUDE.md
+.claude/
+.cursor/
+docs/dev/
+
