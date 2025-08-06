@@ -42,7 +42,7 @@ export const ImageContent = ({ data }: { data: PageBlocksImageContent }) => {
           <TinaMarkdown
             content={data.body}
             components={{
-              Mermaid,
+              mermaid: (props: any) => <Mermaid {...props} />,
               scriptCopyBlock: (props: any) => <ScriptCopyBtn {...props} />,
             }}
           />
