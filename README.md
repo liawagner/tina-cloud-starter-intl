@@ -1,6 +1,10 @@
-# Tina Starter 🦙
+# Tina Cloud Starter Internationalized 🦙
 
-![tina-cloud-starter-demo](https://user-images.githubusercontent.com/103008/130587027-995ccc45-a852-4f90-b658-13e8e0517339.gif)
+![Vercel Deploy](https://deploy-badge.vercel.app/vercel/tina-cloud-starter-intl?name=Vercel)
+
+**[Step-by-step instructions for internationalization of Tina CMS using next-intl](INTERNATIONALIZATION.md)**
+
+![tina-cloud-starter-demo](TinaCloudStarter.png)
 
 This Next.js starter is powered by [TinaCMS](https://app.tina.io) for you and your team to visually live edit the structured content of your website. ✨
 
@@ -24,14 +28,13 @@ Install the project's dependencies:
 > [!NOTE]  
 > [Do you know the best package manager for Node.js?](https://www.ssw.com.au/rules/best-package-manager-for-node/) Using the right package manager can greatly enhance your development workflow. We recommend using pnpm for its speed and efficient handling of dependencies. Learn more about why pnpm might be the best choice for your projects by checking out this rule from SSW.
 
-
-```
+```sh
 pnpm install
 ```
 
 Run the project locally:
 
-```
+```sh
 pnpm dev
 ```
 
@@ -46,7 +49,7 @@ pnpm dev
 
 ### GitHub Pages
 
-This starter can be deployed to GitHub Pages. A GitHub Actions workflow is included that handles the build and deployment process. 
+This starter can be deployed to GitHub Pages. A GitHub Actions workflow is included that handles the build and deployment process.
 
 To deploy to GitHub Pages:
 
@@ -55,6 +58,7 @@ To deploy to GitHub Pages:
 
 > [!NOTE]
 > When deploying to GitHub Pages, you'll need to update your secrets in Settings | Secrets and variables | Actions to include:
+>
 > - `NEXT_PUBLIC_TINA_CLIENT_ID`
 > - `TINA_TOKEN`
 >
